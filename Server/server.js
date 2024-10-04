@@ -1,13 +1,23 @@
-
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv'
+import { Server } from 'socket.io';
+import { createServer } from 'node:http';
+import { disconnect } from 'node:process';
 
 // Initialize environment variables
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = 5000;
+
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+  },
+});
 
 // Middleware
 app.use(cors());
@@ -19,6 +29,18 @@ app.get('/', (req, res) => {
 });
 
 // Start the server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+//---------------------------------------------
+io.on('connection', socket =>{
+  console.log("user connected successfully")
+
+  //handle socket events
+  socket.on('send-changes', delta=>{
+    console.log(delta)
+    //broadcast to other users that there are some changes made on the doc
+    socket.broadcast.emit('receive-changes', delta)
+  })
 });
