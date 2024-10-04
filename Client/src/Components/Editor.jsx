@@ -1,14 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Quill from 'quill';
 import "quill/dist/quill.snow.css";
 import './Editor.css'
 import { io } from 'socket.io-client';
+import { useParams } from 'react-router-dom';
 
 
 const Editor = () => {
   //access the socket from anywhere using state
   const [socket , setSoccket] = useState()
   const [quill, setQuill] = useState()
+  const {id : documentId} = useParams()
 
 
   //text design options ------------------------------------------------------------------------------------
@@ -31,6 +33,8 @@ const Editor = () => {
     const editor = document.createElement("div")
     wrapper.append(editor)
     const q = new Quill(editor, {theme: 'snow' , modules: {toolbar: toolBarOptions}})
+    q.disable()
+    q.setText('Loading...')
     setQuill(q);
 
   },[])
@@ -77,6 +81,32 @@ const Editor = () => {
       socket.off('receive-changes', handler)
     }
   }, [socket , quill]);
+
+  //handle mutliple documents
+  useEffect(()=>{
+    if(socket == null || quill == null) return
+
+
+    //get doc from derver
+    socket.emit('get-document', documentId)
+
+    //event to load document to client
+
+    socket.once('load-document', document => {
+      quill.setContents(document)
+
+      //disable quill untill document loads
+      quill.enable()
+    })
+  },[socket, quill, documentId])
+
+  useEffect(()=>{
+    if(socket == null || quill == null) return
+
+    const interval = setInterval(()=> {
+      socket.emit('save-document', quill.getContents())
+    }, 2000)
+  },[socket, quill])
 
 
   return (
